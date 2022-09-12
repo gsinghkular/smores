@@ -1,0 +1,38 @@
+display_information:
+  name: S'mores
+features:
+  bot_user:
+    display_name: S'mores
+    always_online: true
+  slash_commands:
+    - command: /smores
+      url: <host>/slack/events
+      description: enable or disable app
+      should_escape: false
+oauth_config:
+  redirect_urls:
+    - <host>/slack/oauth_redirect
+  scopes:
+    user:
+      - channels:write
+    bot:
+      - app_mentions:read
+      - channels:read
+      - chat:write
+      - commands
+      - groups:read
+      - groups:write
+      - im:write
+      - mpim:read
+      - mpim:write
+      - users:read
+      - channels:join
+settings:
+  event_subscriptions:
+    request_url: <host>/slack/events
+    bot_events:
+      - app_mention
+      - member_joined_channel
+  org_deploy_enabled: false
+  socket_mode_enabled: false
+  token_rotation_enabled: false

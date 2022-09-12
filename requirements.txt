@@ -1,0 +1,10 @@
+alembic==1.8.0
+fastapi==0.78.0
+python-dotenv==0.20.0
+slack-bolt==1.14.0
+uvicorn==0.17.6
+aiohttp==3.8.1
+sqlalchemy==1.4.37
+psycopg2-binary==2.9.3
+redis==4.3.4
+celery==5.2.7
