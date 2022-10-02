@@ -149,6 +149,38 @@ def send_failed_intros():
             db.commit()
 
 
+@celery.task
+def send_midpoint_reminder():
+    with database.SessionLocal() as db:
+        midpoint_convos = db.query(models.ChannelConversations).where(
+                and_(
+                    models.ChannelConversations.conversations.op("->")("midpoint_status") == None,
+                    models.ChannelConversations.sent_on == datetime.utcnow().date() - timedelta(8),
+                )
+            ).all()
+
+        for intro in midpoint_convos:
+            client = _get_web_client(db, intro.team_id, intro.channel_id)
+
+            all_convos_sent = True
+            for conv in intro.conversations["pairs"]:
+                if conv["status"] != "INTRO_SENT" or "midpoint_sent_on" in conv:
+                    continue
+                time.sleep(1.2)
+                try:
+                    client.chat_postMessage(
+                        text=":wave: Mid point reminder - if you haven't met yet, make it happen!",
+                        channel=conv["channel_id"],
+                    )
+                    conv["midpoint_sent_on"] = datetime.utcnow().date().isoformat()
+                except Exception:
+                    all_convos_sent = False
+                    logger.exception("error sending midpoint")
+
+            
+            intro.conversations["midpoint_status"] = "SENT" if all_convos_sent else "PARTIALLY_SENT"
+            db.commit()
+
 def generate_and_send_conversations(channel, db):
     members = (
         db.query(models.ChannelMembers.member_id)
@@ -229,3 +261,22 @@ def _generate_members_list(member_ids, exclude_members, channel_id, team_id):
             )
 
     return members
+
+
+def _get_web_client(db, team_id, channel_id):
+    enterprise_id = (
+        db.query(models.Channels.enterprise_id)
+        .where(
+            and_(
+                models.Channels.team_id == team_id,
+                models.Channels.channel_id == channel_id,
+            )
+        )
+        .first()
+    )
+
+    installation = database.installation_store.find_installation(
+        enterprise_id=enterprise_id[0], team_id=team_id
+    )
+
+    return WebClient(token=installation.bot_token)
