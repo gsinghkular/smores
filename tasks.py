@@ -131,7 +131,7 @@ def send_failed_intros():
                 try:
                     response = client.conversations_open(users=conv["pair"])
                     client.chat_postMessage(
-                        text="hello :wave:! You've been matched for a S'mores chat. Find some time on your calendar and make it happen!",
+                        text=f"hello :wave:! You've been matched for a S'mores chat because you're member of <#{intro.channel_id}>. Find some time on your calendar and make it happen!",
                         channel=response.data["channel"]["id"],
                     )
                     conv["status"] = "INTRO_SENT"
@@ -219,7 +219,7 @@ def generate_and_send_conversations(channel, db):
         try:
             response = client.conversations_open(users=conv["pair"])
             client.chat_postMessage(
-                text="hello :wave:! You've been matched for a S'mores chat. Find some time on your calendar and make it happen!",
+                text=f"hello :wave:! You've been matched for a S'mores chat because you're member of <#{channel.channel_id}>. Find some time on your calendar and make it happen!",
                 channel=response.data["channel"]["id"],
             )
             conv["status"] = "INTRO_SENT"
