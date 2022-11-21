@@ -2,6 +2,7 @@ import logging
 import random
 import os
 import time
+import helpers
 
 from sqlalchemy import or_, and_
 from datetime import datetime, timedelta
@@ -16,32 +17,23 @@ logger = logging.getLogger(__name__)
 
 @celery.task
 def cache_channel_members(channel_id, team_id, enterprise_id):
-    installation = database.installation_store.find_installation(
-        enterprise_id=enterprise_id, team_id=team_id
-    )
-
-    client = WebClient(token=installation.bot_token)
+    client = helpers.get_web_client(enterprise_id, team_id)
 
     with database.SessionLocal() as db:
         members_data = client.conversations_members(channel=channel_id, limit=200).data
-        next_cursor = members_data["response_metadata"]["next_cursor"]
-        local_members = (
-            db.query(models.ChannelMembers.member_id)
-            .where(models.ChannelMembers.channel_id == channel_id)
-            .all()
-        )
-        local_members_list = [m for (m,) in local_members]
-
-        members = _generate_members_list(
-            members_data["members"], local_members_list, channel_id, team_id
+        local_members = crud.get_cached_channel_member_ids(db, channel_id, team_id)
+        members = helpers.generate_member_model_list(
+            members_data["members"], local_members, channel_id, team_id
         )
         db.bulk_save_objects(members)
+        
+        next_cursor = members_data["response_metadata"]["next_cursor"]
         while next_cursor:
             members_data = client.conversations_members(
-                channel=channel_id, limit=1, cursor=next_cursor
+                channel=channel_id, limit=200, cursor=next_cursor
             ).data
-            members = _generate_members_list(
-                members_data["members"], local_members_list, channel_id, team_id
+            members = helpers.generate_member_model_list(
+                members_data["members"], local_members, channel_id, team_id
             )
             db.bulk_save_objects(members)
             next_cursor = members_data["response_metadata"]["next_cursor"]
@@ -84,11 +76,7 @@ def match_pairs_periodic():
 @celery.task
 def force_generate_conversations(channel_id):
     with database.SessionLocal() as db:
-        channel = (
-            db.query(models.Channels)
-            .where(models.Channels.channel_id == channel_id)
-            .first()
-        )
+        channel = db.query(models.Channels).where(models.Channels.channel_id == channel_id).first()
         if channel is None:
             return
 
@@ -109,18 +97,8 @@ def send_failed_intros():
             .all()
         )
         for intro in pending_intros:
-            enterprise_id = db.query(models.Channels.enterprise_id).where(
-                and_(
-                    models.Channels.team_id == intro.team_id,
-                    models.Channels.channel_id == intro.channel_id
-                )
-            ).first()
-
-            installation = database.installation_store.find_installation(
-                enterprise_id=enterprise_id[0], team_id=intro.team_id
-            )
-
-            client = WebClient(token=installation.bot_token)
+            enterprise_id = crud.get_enterprise_id(db, intro.team_id, intro.channel_id)
+            client = helpers.get_web_client(enterprise_id, intro.team_id)
 
             all_convos_sent = True
             for conv in intro.conversations["pairs"]:
@@ -152,15 +130,20 @@ def send_failed_intros():
 @celery.task
 def send_midpoint_reminder():
     with database.SessionLocal() as db:
-        midpoint_convos = db.query(models.ChannelConversations).where(
+        midpoint_convos = (
+            db.query(models.ChannelConversations)
+            .where(
                 and_(
                     models.ChannelConversations.conversations.op("->")("midpoint_status") == None,
                     models.ChannelConversations.sent_on == datetime.utcnow().date() - timedelta(8),
                 )
-            ).all()
+            )
+            .all()
+        )
 
         for intro in midpoint_convos:
-            client = _get_web_client(db, intro.team_id, intro.channel_id)
+            enterprise_id = crud.get_enterprise_id(db, intro.team_id, intro.channel_id)
+            client = helpers.get_web_client(enterprise_id, intro.team_id)
 
             all_convos_sent = True
             for conv in intro.conversations["pairs"]:
@@ -177,9 +160,9 @@ def send_midpoint_reminder():
                     all_convos_sent = False
                     logger.exception("error sending midpoint")
 
-            
             intro.conversations["midpoint_status"] = "SENT" if all_convos_sent else "PARTIALLY_SENT"
             db.commit()
+
 
 def generate_and_send_conversations(channel, db):
     members = (
@@ -209,7 +192,7 @@ def generate_and_send_conversations(channel, db):
         last_pair.append(members_list[count // 2])
         pairs[len(pairs) - 1] = last_pair
 
-    convos = _save_new_conversations(pairs, channel, db)
+    convos = crud.save_channel_conversations(db, pairs, channel)
     client = WebClient(token=installation.bot_token)
 
     all_convos_sent = True
@@ -236,47 +219,3 @@ def generate_and_send_conversations(channel, db):
         convos.conversations["status"] = "PARTIALLY_SENT"
 
     db.commit()
-
-
-def _save_new_conversations(pairs, channel, db):
-    conversations = []
-    for pair in pairs:
-        conversation = {"status": "GENERATED", "pair": pair}
-        conversations.append(conversation)
-
-    conversations_data = {"status": "GENERATED", "pairs": conversations}
-    return crud.add_conversation(
-        db, channel.channel_id, channel.team_id, conversations_data
-    )
-
-
-def _generate_members_list(member_ids, exclude_members, channel_id, team_id):
-    members = []
-    for member in member_ids:
-        if member not in exclude_members:
-            members.append(
-                models.ChannelMembers(
-                    channel_id=channel_id, member_id=member, team_id=team_id
-                )
-            )
-
-    return members
-
-
-def _get_web_client(db, team_id, channel_id):
-    enterprise_id = (
-        db.query(models.Channels.enterprise_id)
-        .where(
-            and_(
-                models.Channels.team_id == team_id,
-                models.Channels.channel_id == channel_id,
-            )
-        )
-        .first()
-    )
-
-    installation = database.installation_store.find_installation(
-        enterprise_id=enterprise_id[0], team_id=team_id
-    )
-
-    return WebClient(token=installation.bot_token)
