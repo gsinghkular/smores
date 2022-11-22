@@ -1,15 +1,36 @@
-from sqlalchemy import delete, and_
+from typing import List
+from sqlalchemy import delete, and_, or_
 from sqlalchemy.orm import Session
 from sqlalchemy.dialects.postgresql import insert
+from datetime import datetime, timedelta
 
 from . import models
 
 
-def get_channel(db: Session, channel_id: str):
+def get_channel(db: Session, channel_id: str, team_id: str):
     return (
         db.query(models.Channels)
-        .filter(models.Channels.channel_id == channel_id)
+        .filter(and_(models.Channels.channel_id == channel_id, models.Channels.team_id == team_id))
         .first()
+    )
+
+
+def get_channels_eligible_for_pairing(db: Session, limit: int = 10):
+    # TODO: instead of being default of 2 weeks, allow per channel configuration of frequency of pairing
+    two_weeks_ago_date = datetime.utcnow() - timedelta(14)
+    return (
+        db.query(models.Channels)
+        .where(
+            and_(
+                models.Channels.is_active == True,
+                or_(
+                    models.Channels.last_sent_on == None,
+                    models.Channels.last_sent_on <= two_weeks_ago_date.date(),
+                ),
+            )
+        )
+        .limit(limit)
+        .all()
     )
 
 
@@ -26,9 +47,7 @@ def add_channel(db: Session, channel_id: str, team_id: str, enterprise_id: str):
     return channel
 
 
-def add_member_if_not_exists(
-    db: Session, member_id: str, channel_id: str, team_id: str
-):
+def add_member_if_not_exists(db: Session, member_id: str, channel_id: str, team_id: str):
     insert_query = (
         insert(models.ChannelMembers)
         .values(member_id=member_id, channel_id=channel_id, team_id=team_id)
@@ -53,15 +72,46 @@ def delete_member(db: Session, member_id: str, channel_id: str, team_id: str):
     return result.rowcount
 
 
-def get_channels(db: Session, skip: int = 0, limit: int = 100):
-    return db.query(models.Channels).offset(skip).limit(limit).all()
+def get_cached_channel_member_ids(db: Session, channel_id: str, team_id: str) -> List[str]:
+    local_members = (
+        db.query(models.ChannelMembers.member_id)
+        .where(
+            and_(
+                models.ChannelMembers.channel_id == channel_id,
+                models.ChannelMembers.team_id == team_id,
+            )
+        )
+        .all()
+    )
+    return [m for (m,) in local_members]
 
 
-def add_conversation(db: Session, channel_id: str, team_id: str, conversations):
+def save_channel_conversations(db: Session, channel, pairs):
+    conversation_pairs = []
+    for pair in pairs:
+        conversation_pair = {"status": "GENERATED", "pair": pair}
+        conversation_pairs.append(conversation_pair)
+
+    conversations = {"status": "GENERATED", "pairs": conversation_pairs}
     conversation = models.ChannelConversations(
-        channel_id=channel_id, team_id=team_id, conversations=conversations
+        channel_id=channel.channel_id,
+        team_id=channel.team_id,
+        conversations=conversations,
     )
     db.add(conversation)
     db.commit()
     db.refresh(conversation)
     return conversation
+
+
+def get_enterprise_id(db, team_id, channel_id):
+    return (
+        db.query(models.Channels.enterprise_id)
+        .where(
+            and_(
+                models.Channels.team_id == team_id,
+                models.Channels.channel_id == channel_id,
+            )
+        )
+        .first()
+    )[0]
