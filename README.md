@@ -26,7 +26,3 @@ The intros are sent every 2 weeks currently on Mondays (To be made configurable 
 ## Contributing
 ---
 All contributions are welcome and I will try to review your PRs in a timely manner. Looking for contributions on adding more tests, completing TODO tasks in the code, work on reported issues in the Issues tab and improving code quality.
-
-Like using the app? Consider buying me a coffee and support development by donating:
-
-[![paypal](https://www.paypalobjects.com/en_US/i/btn/btn_donate_LG.gif)](https://www.paypal.com/donate/?business=ARLRHPV9XXAMW&no_recurring=0&item_name=For+supporting+S%27mores+app+development&currency_code=CAD)
