@@ -102,7 +102,7 @@ def _handle_activation(client, respond, action, context, channel_id, logger):
     # while this works for now, eventually move it to background task
     # as slack requires to respond in under 3 seconds
     with database.SessionLocal() as db:
-        channel = crud.get_channel(db, channel_id)
+        channel = crud.get_channel(db, channel_id, context.team_id)
 
         if channel is None and action == "enable":
             crud.add_channel(db, channel_id, context.team_id, context.enterprise_id)

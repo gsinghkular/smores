@@ -7,8 +7,12 @@ from datetime import datetime, timedelta
 from . import models
 
 
-def get_channel(db: Session, channel_id: str):
-    return db.query(models.Channels).filter(models.Channels.channel_id == channel_id).first()
+def get_channel(db: Session, channel_id: str, team_id: str):
+    return (
+        db.query(models.Channels)
+        .filter(and_(models.Channels.channel_id == channel_id, models.Channels.team_id == team_id))
+        .first()
+    )
 
 
 def get_channels_eligible_for_pairing(db: Session, limit: int = 10):
