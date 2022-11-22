@@ -17,7 +17,6 @@ logger = logging.getLogger(__name__)
 @celery.task
 def cache_channel_members(channel_id, team_id, enterprise_id):
     # TODO: If this task fails it doesn't retry, add re-try logic
-
     sc = helpers.get_slack_client(enterprise_id, team_id)
     with database.SessionLocal() as db:
         members_data = sc.conversations_members(channel=channel_id, limit=200).data
@@ -42,6 +41,7 @@ def cache_channel_members(channel_id, team_id, enterprise_id):
 @celery.task
 def match_pairs_periodic():
     # TODO: allow configuring of which day to start conversations on per channel basis
+    # TODO: If another task starts while previous one is already running that can potentially add issues, use locks to prevent that
     if datetime.now().weekday() != int(os.environ.get("CONVERSATION_DAY", 1)):
         return
 
