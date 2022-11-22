@@ -3,7 +3,7 @@
 A slack app to build connections in a remote work environment - When working remotely, it's hard to build connections and have casual chats as one would have in office. S'mores solves it by matching people from a slack channel when added to one for random 1-1s so that people can have casual chats outside work meetings.
 
 ## Installing
----
+
 ### Hosting
 
 This app currently isn't available on general slack app directory, you can create your own instance by hosting it yourself. It is built to be run on Heroku using the Procfile and you'd need a Redis and Postgres instance. From your slack account hosting the app, you'd need to set the environment variables defined in `template.env`. 
@@ -24,5 +24,5 @@ The intros are sent every 2 weeks currently on Mondays (To be made configurable 
 *Note: The next pair will be sent on the Monday 2 weeks after this date - so if this command was run on Thursday then the next conversation will be sent on 2 weeks + 3 days.*
 
 ## Contributing
----
+
 All contributions are welcome and I will try to review your PRs in a timely manner. Looking for contributions on adding more tests, completing TODO tasks in the code, work on reported issues in the Issues tab and improving code quality.
