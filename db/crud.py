@@ -1,7 +1,8 @@
 from typing import List
-from sqlalchemy import delete, and_
+from sqlalchemy import delete, and_, or_
 from sqlalchemy.orm import Session
 from sqlalchemy.dialects.postgresql import insert
+from datetime import datetime, timedelta
 
 from . import models
 
@@ -10,8 +11,23 @@ def get_channel(db: Session, channel_id: str):
     return db.query(models.Channels).filter(models.Channels.channel_id == channel_id).first()
 
 
-def get_channels(db: Session, skip: int = 0, limit: int = 100):
-    return db.query(models.Channels).offset(skip).limit(limit).all()
+def get_channels_eligible_for_pairing(db: Session, limit: int = 10):
+    # TODO: instead of being default of 2 weeks, allow per channel configuration of frequency of pairing
+    two_weeks_ago_date = datetime.utcnow() - timedelta(14)
+    return (
+        db.query(models.Channels)
+        .where(
+            and_(
+                models.Channels.is_active == True,
+                or_(
+                    models.Channels.last_sent_on == None,
+                    models.Channels.last_sent_on <= two_weeks_ago_date.date(),
+                ),
+            )
+        )
+        .limit(limit)
+        .all()
+    )
 
 
 def add_channel(db: Session, channel_id: str, team_id: str, enterprise_id: str):
