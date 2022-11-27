@@ -147,7 +147,7 @@ def send_midpoint_reminder():
 
 def generate_and_send_conversations(channel, db):
     conv_pairs = create_conversation_pairs(channel, db)
-    
+
     client = helpers.get_slack_client(channel.enterprise_id, channel.team_id)
     all_convos_sent = True
     for conv_pair in conv_pairs.conversations["pairs"]:
@@ -176,15 +176,17 @@ def generate_and_send_conversations(channel, db):
 
 
 def create_conversation_pairs(channel, db):
-    members_list = crud.get_cached_channel_member_ids(db, channel.channel_id, channel.team_id, opted_users_only=True)
+    members_list = crud.get_cached_channel_member_ids(
+        db, channel.channel_id, channel.team_id, opted_users_only=True
+    )
 
     installation = database.installation_store.find_installation(
         enterprise_id=channel.enterprise_id, team_id=channel.team_id
     )
-    
+
     if installation.bot_user_id in members_list:
         members_list.remove(installation.bot_user_id)
-    
+
     if len(members_list) < 2:
         channel.last_sent_on = datetime.utcnow().date()
         db.commit()
@@ -203,6 +205,7 @@ def create_conversation_pairs(channel, db):
         pairs[len(pairs) - 1] = last_pair
 
     return crud.save_channel_conversations(db, channel, pairs)
+
 
 def _intro_message(channel_id):
     return f"hello :wave:! You've been matched for a S'mores chat because you're member of <#{channel_id}>. Find some time on your calendar and make it happen!"

@@ -128,6 +128,6 @@ def _handle_member_inclusion(respond, action, context, member_id):
                 return
             member.is_opted = False
             db.commit()
-            respond(f"{member_id} removed from pairings.")   
+            respond(f"{member_id} removed from pairings.")
     else:
         respond(f"{action[0]} not supported")
