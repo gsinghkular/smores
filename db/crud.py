@@ -47,6 +47,15 @@ def add_channel(db: Session, channel_id: str, team_id: str, enterprise_id: str):
     return channel
 
 
+def get_member(db: Session, member_id: str, channel_id: str, team_id: str)-> models.ChannelMembers:
+    condition = [
+        models.ChannelMembers.member_id == member_id,
+        models.ChannelMembers.channel_id == channel_id,
+        models.ChannelMembers.team_id == team_id,
+    ]
+    return db.query(models.ChannelMembers).where(and_(*condition)).first()
+
+
 def add_member_if_not_exists(db: Session, member_id: str, channel_id: str, team_id: str):
     insert_query = (
         insert(models.ChannelMembers)
@@ -72,17 +81,14 @@ def delete_member(db: Session, member_id: str, channel_id: str, team_id: str):
     return result.rowcount
 
 
-def get_cached_channel_member_ids(db: Session, channel_id: str, team_id: str) -> List[str]:
-    local_members = (
-        db.query(models.ChannelMembers.member_id)
-        .where(
-            and_(
-                models.ChannelMembers.channel_id == channel_id,
-                models.ChannelMembers.team_id == team_id,
-            )
-        )
-        .all()
-    )
+def get_cached_channel_member_ids(db: Session, channel_id: str, team_id: str, opted_users_only: bool = False) -> List[str]:
+    condition = [
+        models.ChannelMembers.channel_id == channel_id,
+        models.ChannelMembers.team_id == team_id,
+    ]
+    if opted_users_only:
+        condition.append(models.ChannelMembers.is_opted == True)
+    local_members = db.query(models.ChannelMembers.member_id).where(and_( *condition)).all()
     return [m for (m,) in local_members]
 
 

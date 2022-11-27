@@ -38,6 +38,7 @@ class ChannelMembers(Base):
     channel_id = Column(String, index=True)
     team_id = Column(String, index=True)
     member_id = Column(String)
+    is_opted = Column(Boolean, nullable=False, server_default='t', default=True)
     added_on = Column(DateTime, default=datetime.utcnow)
 
     __table_args__ = (

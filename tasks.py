@@ -176,7 +176,7 @@ def generate_and_send_conversations(channel, db):
 
 
 def create_conversation_pairs(channel, db):
-    members_list = crud.get_cached_channel_member_ids(db, channel.channel_id, channel.team_id)
+    members_list = crud.get_cached_channel_member_ids(db, channel.channel_id, channel.team_id, opted_users_only=True)
 
     installation = database.installation_store.find_installation(
         enterprise_id=channel.enterprise_id, team_id=channel.team_id
