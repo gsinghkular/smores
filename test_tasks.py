@@ -40,12 +40,15 @@ class TestTasks(unittest.TestCase):
                 "response_metadata": {"next_cursor": ""},
             }
             client_instance = MagicMock()
-            client_instance.conversations_members.side_effect = [cursor_resp, no_cursor_resp]
+            client_instance.conversations_members.side_effect = [
+                cursor_resp,
+                no_cursor_resp,
+            ]
             webclient.return_value = client_instance
-            
+
             # act
             tasks.cache_channel_members(channel_id, team_id, enterprise_id)
-            
+
             # assert correct values are inserted
             res = db.query(models.ChannelMembers).count()
             self.assertEquals(res, 4)
@@ -58,9 +61,7 @@ class TestTasks(unittest.TestCase):
         client_instance = MagicMock()
         client_instance.conversations_open().data = {
             "ok": True,
-            "channel": {
-                "id": "test"
-            }
+            "channel": {"id": "test"},
         }
         webclient.return_value = client_instance
         with database.SessionLocal() as db:
@@ -72,16 +73,19 @@ class TestTasks(unittest.TestCase):
 
             tasks.match_pairs_periodic()
 
-            conversations = db.query(models.ChannelConversations).where(models.ChannelConversations.team_id == "generate_and_send_conv_id").all()
+            conversations = (
+                db.query(models.ChannelConversations)
+                .where(models.ChannelConversations.team_id == "generate_and_send_conv_id")
+                .all()
+            )
 
             self.assertEqual(2, len(conversations))
-            
+
             three_members_conv = [c for c in conversations if c.channel_id == "channel_1"]
             six_members_conv = [c for c in conversations if c.channel_id == "channel_2"]
 
             self.assertEqual(1, len(three_members_conv[0].conversations["pairs"]))
             self.assertEqual(3, len(six_members_conv[0].conversations["pairs"]))
-        
 
     def _insert_fake_channels_and_members(self, team_id, enterprise_id):
 
@@ -90,7 +94,13 @@ class TestTasks(unittest.TestCase):
         with database.SessionLocal() as db:
             for i in range(3):
                 channel_id = f"channel_{i}"
-                installation = Installation(user_id="test", team_id=team_id, bot_user_id="bot_id", enterprise_id=enterprise_id, app_id="app")
+                installation = Installation(
+                    user_id="test",
+                    team_id=team_id,
+                    bot_user_id="bot_id",
+                    enterprise_id=enterprise_id,
+                    app_id="app",
+                )
                 database.installation_store.save(installation)
                 crud.add_channel(db, channel_id, team_id, enterprise_id)
                 for j in range(6):
@@ -98,7 +108,6 @@ class TestTasks(unittest.TestCase):
                     if i % 2 != 0 and j % 2 != 0:
                         continue
                     crud.add_member_if_not_exists(db, f"member_{j}", channel_id, team_id)
-
 
     def tearDown(self) -> None:
         database.Base.metadata.drop_all(database.engine)

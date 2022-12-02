@@ -68,7 +68,7 @@ def handle_smores_command(
     try:
         ack()
 
-        action = command["text"].lower()
+        action = command["text"].strip().split(" ")[0].lower()
         channel_id = command["channel_id"]
 
         if action in ["enable", "disable"]:
@@ -76,9 +76,12 @@ def handle_smores_command(
         elif action in ["force_chat"]:
             tasks.force_generate_conversations.delay(channel_id)
             respond("conversations queued to be sent.")
+        elif action in ["include", "exclude"]:
+            member_id = command["text"].strip().split(" ")[1]
+            _handle_member_inclusion(respond, action, context, member_id)
         else:
             respond(
-                f"Action `{action}` not recognized. Supported actions are `enable | disable`"
+                f"Action `{action}` not recognized. Supported actions are `enable | disable | force_chat | exclude`"
             )
             return
 
@@ -114,3 +117,17 @@ def _handle_activation(client, respond, action, context, channel_id, logger):
             db.commit()
 
         respond(f"S'mores fireside chats {action}d")
+
+
+def _handle_member_inclusion(respond, action, context, member_id):
+    if action == "exclude":
+        with database.SessionLocal() as db:
+            member = crud.get_member(db, member_id, context.channel_id, context.team_id)
+            if not member:
+                respond(f"no member with id {member_id} found.")
+                return
+            member.is_opted = False
+            db.commit()
+            respond(f"{member_id} removed from pairings.")
+    else:
+        respond(f"{action[0]} not supported")
