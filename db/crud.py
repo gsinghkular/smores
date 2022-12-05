@@ -7,7 +7,7 @@ from datetime import datetime, timedelta
 from . import models
 
 
-def get_channel(db: Session, channel_id: str, team_id: str):
+def get_channel(db: Session, channel_id: str, team_id: str) -> models.Channels:
     return (
         db.query(models.Channels)
         .filter(
