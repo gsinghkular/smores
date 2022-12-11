@@ -146,22 +146,24 @@ def send_midpoint_reminder():
 
 
 @celery.task
-def exclude_bots_from_cached_users(channel: models.Channels):
+def exclude_bots_from_cached_users(channel_id: str, team_id: str, enterprise_id: str):
     with database.SessionLocal() as db:
-        sc = helpers.get_slack_client(channel.enterprise_id, channel.team_id)
-        members = crud.get_cached_channel_member_ids(db, channel.channel_id, channel.team_id)
+        sc = helpers.get_slack_client(enterprise_id, team_id)
+        members = crud.get_cached_channel_member_ids(db, channel_id, team_id)
         for member in members:
             user_data = sc.users_info(user=member).data
             if user_data["user"]["is_bot"]:
                 # TODO: handle 429 errors from slack api
                 time.sleep(1.2)
-                crud.delete_member(db, member, channel.channel_id, channel.team_id)
+                crud.delete_member(db, member, channel_id, team_id)
 
 
 @celery.task
 def add_member_to_db(member_id: str, channel_id: str, team_id: str):
     with database.SessionLocal() as db:
         channel = crud.get_channel(db, channel_id, team_id)
+        if not channel:
+            return
         sc = helpers.get_slack_client(channel.enterprise_id, team_id)
         user_data = sc.users_info(user=member_id).data
         fields = {
