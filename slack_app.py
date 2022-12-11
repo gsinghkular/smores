@@ -7,7 +7,7 @@ from db import database
 
 
 # set up logging
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.WARN)
 logger = logging.getLogger(__name__)
 
 # slack app with OAuth store

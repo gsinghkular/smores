@@ -30,19 +30,9 @@ async def oauth_redirect(req: Request):
 
 
 @app.event("member_joined_channel")
-def handle_member_joined(body, context, logger: logging.Logger):
+def handle_member_joined(body, context):
     event = body["event"]
-    with database.SessionLocal() as db:
-        result = crud.add_member_if_not_exists(
-            db, event["user"], context.channel_id, context.team_id
-        )
-        if result < 1:
-            fields = {
-                "user": event["user"],
-                "channel": context.channel_id,
-                "team_id": context.team_id,
-            }
-            logger.warning("no user inserted", extra=fields)
+    tasks.add_member_to_db.delay(event["user"], context.channel_id, context.team_id)
 
 
 @app.event("member_left_channel")
