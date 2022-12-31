@@ -18,9 +18,9 @@ class TestTasks(unittest.TestCase):
         existing_member = "member_4"
         with database.SessionLocal() as db:
             # insert a fake channel into db
-            crud.add_channel(db, channel_id, team_id, enterprise_id)
+            channel = crud.add_channel(db, channel_id, team_id, enterprise_id)
             # check that it works with existing member
-            crud.add_member_if_not_exists(db, existing_member, channel_id, team_id)
+            crud.add_member_if_not_exists(db, existing_member, channel)
             # return fake response data simulating slack api
             cursor_resp, no_cursor_resp = MagicMock(), MagicMock()
             cursor_resp.data = {
@@ -102,12 +102,12 @@ class TestTasks(unittest.TestCase):
                     app_id="app",
                 )
                 database.installation_store.save(installation)
-                crud.add_channel(db, channel_id, team_id, enterprise_id)
+                channel = crud.add_channel(db, channel_id, team_id, enterprise_id)
                 for j in range(6):
                     # for ood channels, insert half records to make number of members odd
                     if i % 2 != 0 and j % 2 != 0:
                         continue
-                    crud.add_member_if_not_exists(db, f"member_{j}", channel_id, team_id)
+                    crud.add_member_if_not_exists(db, f"member_{j}", channel)
 
     def tearDown(self) -> None:
         database.Base.metadata.drop_all(database.engine)

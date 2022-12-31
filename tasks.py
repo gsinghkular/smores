@@ -174,7 +174,7 @@ def add_member_to_db(member_id: str, channel_id: str, team_id: str):
         if user_data["user"]["is_bot"]:
             logger.warn("user is a bot", extra=fields)
             return
-        result = crud.add_member_if_not_exists(db, member_id, channel_id, team_id)
+        result = crud.add_member_if_not_exists(db, member_id, channel)
         if result < 1:
             logger.warning("no user inserted", extra=fields)
 
@@ -210,9 +210,11 @@ def generate_and_send_conversations(channel, db):
 
 
 def create_conversation_pairs(channel: models.Channels, db):
-    members_list = crud.get_cached_channel_member_ids(
-        db, channel.channel_id, channel.team_id, opted_users_only=True
-    )
+    members_list = channel.members_circle
+    if not members_list or len(members_list) == 0:
+        members_list = crud.get_cached_channel_member_ids(
+            db, channel.channel_id, channel.team_id, opted_users_only=True
+        )
 
     installation = database.installation_store.find_installation(
         enterprise_id=channel.enterprise_id, team_id=channel.team_id
@@ -226,13 +228,10 @@ def create_conversation_pairs(channel: models.Channels, db):
         db.commit()
         return []
 
-    # For even number of people, the round robin tournament will match everyone
-    # at least once by using the circle method: https://en.wikipedia.org/wiki/Round-robin_tournament#Circle_method
-    # Because this works with even numbers only, for odd number ones; one member is randomly
+    # For even number of people, the round robin tournament will match everyone at least once
+    # by using the circle method: https://en.wikipedia.org/wiki/Round-robin_tournament#Circle_method
+    # Because this works with even numbers only, for odd number ones - one member is randomly
     # removed and they are added to one of the pairs generated randomly
-    # TODO: Haven't given much though on how new members joining/leaving will affect this
-    # because I get them in the order they joined, so it should be handled I think but 
-    # need to think a bit more
 
     count = len(members_list)
     excluded_member = ""
@@ -241,20 +240,23 @@ def create_conversation_pairs(channel: models.Channels, db):
         excluded_member = members_list[random_member_to_remove]
         del members_list[random_member_to_remove]
 
-    pairs = helpers.round_robin_match(members_list, channel.next_match_number)
+    pairs, members_circle = helpers.round_robin_match(members_list)
 
     if excluded_member:
         random_pair = random.randrange(count//2)
         pairs[random_pair].append(excluded_member)
 
     conversations = crud.save_channel_conversations(db, channel, pairs)
-    if channel.next_match_number + 1 < count:
-        channel.next_match_number += 1
-    else:
-        channel.next_match_number = 1
+    channel.members_circle = members_circle
     db.commit()
     return conversations
 
 
 def _intro_message(channel_id):
     return f"hello :wave:! You've been matched for a S'mores chat because you're member of <#{channel_id}>. Find some time on your calendar and make it happen!"
+
+
+@celery.task
+def delete(channel_id, team_id, member_id):
+    with database.SessionLocal() as db:
+        crud.delete_member(db, member_id, channel_id, team_id)

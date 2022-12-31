@@ -3,6 +3,7 @@ from sqlalchemy import delete, and_, or_
 from sqlalchemy.orm import Session
 from sqlalchemy.dialects.postgresql import insert
 from datetime import datetime, timedelta
+from sqlalchemy.ext.mutable import MutableList
 
 from . import models
 
@@ -64,14 +65,16 @@ def get_member(
 
 
 def add_member_if_not_exists(
-    db: Session, member_id: str, channel_id: str, team_id: str
+    db: Session, member_id: str, channel: models.Channels
 ):
     insert_query = (
         insert(models.ChannelMembers)
-        .values(member_id=member_id, channel_id=channel_id, team_id=team_id)
+        .values(member_id=member_id, channel_id=channel.channel_id, team_id=channel.team_id)
         .on_conflict_do_nothing(index_elements=["member_id", "channel_id", "team_id"])
     )
     result = db.execute(insert_query)
+    if channel.members_circle and member_id not in channel.members_circle:
+        channel.members_circle.append(member_id)
     db.commit()
 
     return result.rowcount
@@ -79,10 +82,13 @@ def add_member_if_not_exists(
 
 def delete_member(db: Session, member_id: str, channel_id: str, team_id: str):
     condition = [
-        models.ChannelMembers.member_id == member_id,
         models.ChannelMembers.channel_id == channel_id,
         models.ChannelMembers.team_id == team_id,
     ]
+    channel = get_channel(db, channel_id, team_id)
+    if channel.members_circle and member_id in channel.members_circle:
+        channel.members_circle.remove(member_id)
+    condition.append(models.ChannelMembers.member_id == member_id)
     delete_query = delete(models.ChannelMembers).where(and_(*condition))
     result = db.execute(delete_query)
     db.commit()
@@ -100,7 +106,7 @@ def get_cached_channel_member_ids(
     if opted_users_only:
         condition.append(models.ChannelMembers.is_opted == True)
     local_members = (
-        db.query(models.ChannelMembers.member_id).order_by(models.ChannelMembers.id).where(and_(*condition))
+        db.query(models.ChannelMembers.member_id).where(and_(*condition))
     )
     return [m for (m,) in local_members]
 

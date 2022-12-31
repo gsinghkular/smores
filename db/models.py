@@ -8,8 +8,8 @@ from sqlalchemy import (
     UniqueConstraint,
     ForeignKeyConstraint,
 )
-from sqlalchemy.dialects.postgresql import JSONB
-from sqlalchemy.ext.mutable import MutableDict
+from sqlalchemy.dialects.postgresql import JSONB, ARRAY
+from sqlalchemy.ext.mutable import MutableDict, MutableList
 
 from datetime import datetime
 
@@ -27,7 +27,7 @@ class Channels(Base):
     last_sent_on = Column(Date, nullable=True)
     conversation_day = Column(Integer, default=1)
     added_on = Column(DateTime, default=datetime.utcnow)
-    next_match_number = Column(Integer, server_default="1", default=1)
+    members_circle = Column(MutableList.as_mutable(ARRAY(String)))
 
     __table_args__ = (UniqueConstraint("channel_id", "team_id", name="channel_uc"),)
 
