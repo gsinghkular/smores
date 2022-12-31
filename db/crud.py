@@ -106,7 +106,7 @@ def get_cached_channel_member_ids(
     if opted_users_only:
         condition.append(models.ChannelMembers.is_opted == True)
     local_members = (
-        db.query(models.ChannelMembers.member_id).where(and_(*condition))
+        db.query(models.ChannelMembers.member_id).where(and_(*condition)).all()
     )
     return [m for (m,) in local_members]
 
