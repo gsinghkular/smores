@@ -3,7 +3,6 @@ from sqlalchemy import delete, and_, or_
 from sqlalchemy.orm import Session
 from sqlalchemy.dialects.postgresql import insert
 from datetime import datetime, timedelta
-from sqlalchemy.ext.mutable import MutableList
 
 from . import models
 
