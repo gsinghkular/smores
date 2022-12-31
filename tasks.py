@@ -209,7 +209,7 @@ def generate_and_send_conversations(channel, db):
     db.commit()
 
 
-def create_conversation_pairs(channel, db):
+def create_conversation_pairs(channel: models.Channels, db):
     members_list = crud.get_cached_channel_member_ids(
         db, channel.channel_id, channel.team_id, opted_users_only=True
     )
@@ -226,19 +226,26 @@ def create_conversation_pairs(channel, db):
         db.commit()
         return []
 
-    random.shuffle(members_list)
-
     count = len(members_list)
-    pairs = []
-    for i in range(count // 2):
-        pairs.append([members_list[i], members_list[count - i - 1]])
-
+    excluded_member = ""
     if count % 2 != 0:
-        last_pair = pairs[len(pairs) - 1]
-        last_pair.append(members_list[count // 2])
-        pairs[len(pairs) - 1] = last_pair
+        random_member_to_remove = random.randrange(count)
+        excluded_member = members_list[random_member_to_remove]
+        del members_list[random_member_to_remove]
 
-    return crud.save_channel_conversations(db, channel, pairs)
+    pairs = helpers.round_robin_match(members_list, channel.next_match_number)
+
+    if excluded_member:
+        random_pair = random.randrange(count//2)
+        pairs[random_pair].append(excluded_member)
+
+    conversations = crud.save_channel_conversations(db, channel, pairs)
+    if channel.next_match_number + 1 < count:
+        channel.next_match_number += 1
+    else:
+        channel.next_match_number = 1
+    db.commit()
+    return conversations
 
 
 def _intro_message(channel_id):
