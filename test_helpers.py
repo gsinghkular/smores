@@ -24,8 +24,8 @@ class TestRoundRobin(unittest.TestCase):
                 key = "".join(str(x) for x in pair)
                 map[key] = True
 
-        # there should be 5 unique pairs
-        assert (len(map), 5)
+        # there should be 15 unique pairs i.e. 3 pairs from each of the 5 times
+        self.assertEqual(len(map), 15)
 
     def test_invalid_arguments(self):
         members = [1, 2, 3, 4, 5, 6]

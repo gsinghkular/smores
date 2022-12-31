@@ -226,6 +226,14 @@ def create_conversation_pairs(channel: models.Channels, db):
         db.commit()
         return []
 
+    # For even number of people, the round robin tournament will match everyone
+    # at least once by using the circle method: https://en.wikipedia.org/wiki/Round-robin_tournament#Circle_method
+    # Because this works with even numbers only, for odd number ones; one member is randomly
+    # removed and they are added to one of the pairs generated randomly
+    # TODO: Haven't given much though on how new members joining/leaving will affect this
+    # because I get them in the order they joined, so it should be handled I think but 
+    # need to think a bit more
+
     count = len(members_list)
     excluded_member = ""
     if count % 2 != 0:
