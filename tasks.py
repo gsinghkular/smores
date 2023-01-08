@@ -14,9 +14,8 @@ from task_runner import celery
 logger = logging.getLogger(__name__)
 
 
-@celery.task
+@celery.task(autoretry_for=(Exception,), retry_backoff=True, retry_kwargs={'max_retries': 5})
 def cache_channel_members(channel_id, team_id, enterprise_id):
-    # TODO: If this task fails it doesn't retry, add re-try logic
     sc = helpers.get_slack_client(enterprise_id, team_id)
     with database.SessionLocal() as db:
         members_data = sc.conversations_members(channel=channel_id, limit=200).data
@@ -158,7 +157,7 @@ def exclude_bots_from_cached_users(channel_id: str, team_id: str, enterprise_id:
                 crud.delete_member(db, member, channel_id, team_id)
 
 
-@celery.task
+@celery.task(autoretry_for=(Exception,), retry_backoff=True, retry_kwargs={'max_retries': 5})
 def add_member_to_db(member_id: str, channel_id: str, team_id: str):
     with database.SessionLocal() as db:
         channel = crud.get_channel(db, channel_id, team_id)
@@ -255,9 +254,3 @@ def create_conversation_pairs(channel: models.Channels, db):
 
 def _intro_message(channel_id):
     return f"hello :wave:! You've been matched for a S'mores chat because you're member of <#{channel_id}>. Find some time on your calendar and make it happen!"
-
-
-@celery.task
-def delete(channel_id, team_id, member_id):
-    with database.SessionLocal() as db:
-        crud.delete_member(db, member_id, channel_id, team_id)
