@@ -66,9 +66,8 @@ def handle_smores_command(
         elif action in ["force_chat"]:
             tasks.force_generate_conversations.delay(channel_id)
             respond("conversations queued to be sent.")
-        elif action in ["include", "exclude"]:
-            member_id = command["text"].strip().split(" ")[1]
-            _handle_member_inclusion(respond, action, context, member_id)
+        elif action in ["opt_in", "opt_out"]:
+            _handle_member_inclusion(respond, action, context, context.user_id)
         else:
             respond(
                 f"Action `{action}` not recognized. Supported actions are `enable | disable | force_chat | exclude`"
@@ -110,14 +109,12 @@ def _handle_activation(client, respond, action, context, channel_id, logger):
 
 
 def _handle_member_inclusion(respond, action, context, member_id):
-    if action == "exclude":
+    if action == "opt_out":
         with database.SessionLocal() as db:
-            member = crud.get_member(db, member_id, context.channel_id, context.team_id)
-            if not member:
-                respond(f"no member with id {member_id} found.")
-                return
-            member.is_opted = False
-            db.commit()
-            respond(f"{member_id} removed from pairings.")
+            crud.delete_member(
+                db, member_id, context.channel_id, context.team_id
+            )
+            respond("You are now opted out from pairings in this channel. Use `opt_in` command to rejoin.")
     else:
-        respond(f"{action[0]} not supported")
+        tasks.add_member_to_db.delay(member_id, context.channel_id, context.team_id)
+        respond("You are now opted in for pairings in this channel.")
