@@ -43,7 +43,7 @@ def match_pairs_periodic():
     # TODO: If another task starts while previous one is already running that can potentially add issues, use mutex to prevent that
     # Instead of start sending messages at sunday night, this makes the day start at 9am EST. TODO: Make it configurable per channel
     today = datetime.utcnow() - timedelta(hours=14)
-    if today.weekday() != int(os.environ.get("CONVERSATION_DAY", 6)):
+    if today.weekday() != int(os.environ.get("CONVERSATION_DAY", 0)):
         return
 
     with database.SessionLocal() as db:
