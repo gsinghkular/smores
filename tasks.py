@@ -40,13 +40,15 @@ def cache_channel_members(channel_id, team_id, enterprise_id):
 @celery.task
 def match_pairs_periodic():
     # TODO: allow configuring of which day to start conversations on per channel basis
-    # TODO: If another task starts while previous one is already running that can potentially add issues, use locks to prevent that
-    if datetime.now().weekday() != int(os.environ.get("CONVERSATION_DAY", 1)):
+    # TODO: If another task starts while previous one is already running that can potentially add issues, use mutex to prevent that
+    # Instead of start sending messages at sunday night, this makes the day start at 9am EST. TODO: Make it configurable per channel
+    today = datetime.utcnow() - timedelta(hours=14)
+    if today.weekday() != int(os.environ.get("CONVERSATION_DAY", 6)):
         return
 
     with database.SessionLocal() as db:
         while True:
-            channels = crud.get_channels_eligible_for_pairing(db, 10)
+            channels = crud.get_channels_eligible_for_pairing(db, 10, today)
             if len(channels) == 0:
                 break
             for channel in channels:
