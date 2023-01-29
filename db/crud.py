@@ -20,9 +20,9 @@ def get_channel(db: Session, channel_id: str, team_id: str) -> models.Channels:
     )
 
 
-def get_channels_eligible_for_pairing(db: Session, limit: int = 10):
+def get_channels_eligible_for_pairing(db: Session, limit: int = 10, curr_date=datetime.utcnow()):
     # TODO: instead of being default of 2 weeks, allow per channel configuration of frequency of pairing
-    two_weeks_ago_date = datetime.utcnow() - timedelta(14)
+    two_weeks_ago_date = curr_date - timedelta(14)
     return (
         db.query(models.Channels)
         .where(
