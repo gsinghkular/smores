@@ -1,0 +1,22 @@
+ICEBREAKERS = [
+    "Do you have any hidden talents?",
+    "Do you prefer the beach or the mountains?",
+    "If you could go anywhere in the world, where would you go and why?",
+    "What's your favorite hobby?",
+    "What's your favorite book/movie/TV show?",
+    "What do you like to do outside of work?",
+    "If you could be a character in any TV show or movie, who would you be and why?",
+    "If you could have any fictional character as a best friend, who would it be and why?",
+    "What's your favorite type of cuisine?",
+    "What's your go-to snack or guilty pleasure food?",
+    "If you could only eat one dish for the rest of your life, what would it be?",
+    "What's the weirdest food combination you've ever tried, and did you like it?",
+    "What's the most useful tech tip or trick you've learned?",
+    "What's your favorite tech gadget or tool, and why?",
+    "What's the latest tech trend that's caught your attention?",
+    "What's the most beautiful natural wonder you've ever seen while traveling?",
+    "If you could have any superpower, what would it be and why?",
+    "What's the best advice you've ever received?",
+    "Do you have a favorite hobby, and how did you get into it?",
+]
+

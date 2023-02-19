@@ -3,6 +3,7 @@ import random
 import os
 import time
 import helpers
+import constants
 
 from sqlalchemy import and_
 from datetime import datetime, timedelta
@@ -35,6 +36,9 @@ def cache_channel_members(channel_id, team_id, enterprise_id):
 
         db.bulk_save_objects(members)
         db.commit()
+
+        # run the task to check if any of the users were bots and remove them
+        exclude_bots_from_cached_users.delay(channel_id, team_id, enterprise_id)
 
 
 @celery.task
@@ -91,7 +95,7 @@ def send_failed_intros():
                 try:
                     response = client.conversations_open(users=conv["pair"])
                     client.chat_postMessage(
-                        text=_intro_message(intro.channel_id),
+                        text=_intro_message(intro.channel_id, conv["pair"]),
                         channel=response.data["channel"]["id"],
                     )
                     conv["status"] = "INTRO_SENT"
@@ -191,7 +195,7 @@ def generate_and_send_conversations(channel, db):
         try:
             response = client.conversations_open(users=conv_pair["pair"])
             client.chat_postMessage(
-                text=_intro_message(channel.channel_id),
+                text=_intro_message(channel.channel_id, conv_pair["pair"]),
                 channel=response.data["channel"]["id"],
             )
             conv_pair["status"] = "INTRO_SENT"
@@ -254,5 +258,10 @@ def create_conversation_pairs(channel: models.Channels, db):
     return conversations
 
 
-def _intro_message(channel_id):
-    return f"hello :wave:! You've been matched for a S'mores chat because you're member of <#{channel_id}>. Find some time on your calendar and make it happen!"
+def _intro_message(channel_id, pair):
+    organizer = random.choice(pair)
+    ice_breaker = random.choice(constants.ICEBREAKERS)
+    return f""":wave: You've been matched for a S'mores chat as you're a member of <#{channel_id}>, to get to know your teammates better by talking about anything you like - work, hobbies, interests, or anything else that's on your mind.
+<@{organizer}>, you have been randomly chosen as the organizer for this group to schedule a meet, huddle or coffee (if you are located in the same area) for this or next week.
+
+Here's an Ice breaker to get this conversation started: _{ice_breaker}_"""
