@@ -73,7 +73,7 @@ def add_member_if_not_exists(
     )
     result = db.execute(insert_query)
     if channel.members_circle and member_id not in channel.members_circle:
-        channel.members_circle.append(member_id)
+        channel.members_circle.insert(0, member_id)
     db.commit()
 
     return result.rowcount
