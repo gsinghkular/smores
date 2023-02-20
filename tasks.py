@@ -250,7 +250,7 @@ def create_conversation_pairs(channel: models.Channels, db):
     if excluded_member:
         random_pair = random.randrange(count//2)
         pairs[random_pair].append(excluded_member)
-        members_circle.append(excluded_member)
+        members_circle.insert(1, excluded_member)
 
     conversations = crud.save_channel_conversations(db, channel, pairs)
     channel.members_circle = members_circle
