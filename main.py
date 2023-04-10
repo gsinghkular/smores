@@ -70,8 +70,10 @@ def handle_smores_command(
             _handle_member_inclusion(respond, action, context, context.user_id)
         elif action in ["exclude"]:
             member_id = command["text"].strip().split(" ")[-1]
-            _remove_from_channel(member_id, context.channel_id, context.team_id)
-            respond(f"User <@{member_id}> as been removed from pairings.")
+            if _remove_from_channel(member_id, context.channel_id, context.team_id):
+                respond(f"User <@{member_id}> as been removed from pairings.")
+            else:
+                respond(f"User <@{member_id}> not found in the channel pairings.")
         else:
             respond(
                 f"Action `{action}` not recognized. Supported actions are `enable | disable | force_chat | exclude | opt_out | opt_in`"
@@ -125,4 +127,8 @@ def _handle_member_inclusion(respond, action, context, member_id):
 
 def _remove_from_channel(member_id, channel_id, team_id):
     with database.SessionLocal() as db:
+        member = crud.get_member(db, member_id, channel_id, team_id)
+        if not member:
+            return False
         crud.delete_member(db, member_id, channel_id, team_id)
+        return True

@@ -1,3 +1,6 @@
+import random
+import helpers
+
 from typing import List
 from sqlalchemy import delete, and_, or_
 from sqlalchemy.orm import Session
@@ -73,7 +76,7 @@ def add_member_if_not_exists(
     )
     result = db.execute(insert_query)
     if channel.members_circle and member_id not in channel.members_circle:
-        channel.members_circle.insert(0, member_id)
+        channel.members_circle.insert(1, member_id)
     db.commit()
 
     return result.rowcount
@@ -83,11 +86,12 @@ def delete_member(db: Session, member_id: str, channel_id: str, team_id: str):
     condition = [
         models.ChannelMembers.channel_id == channel_id,
         models.ChannelMembers.team_id == team_id,
+        models.ChannelMembers.member_id == member_id,
     ]
     channel = get_channel(db, channel_id, team_id)
     if channel.members_circle and member_id in channel.members_circle:
         channel.members_circle.remove(member_id)
-    condition.append(models.ChannelMembers.member_id == member_id)
+        channel.members_circle = _rotate_members_circle(channel.members_circle)
     delete_query = delete(models.ChannelMembers).where(and_(*condition))
     result = db.execute(delete_query)
     db.commit()
@@ -139,3 +143,20 @@ def get_enterprise_id(db, team_id, channel_id):
         )
         .first()
     )[0]
+
+
+def _rotate_members_circle(members):
+    count = len(members)
+    excluded_member = ""
+    if count % 2 != 0:
+        random_member_to_remove = random.randrange(count)
+        excluded_member = members[random_member_to_remove]
+        del members[random_member_to_remove]
+
+    _, members_circle = helpers.round_robin_match(members)
+
+    if excluded_member:
+        members_circle.insert(1, excluded_member)
+
+    return members_circle
+    
