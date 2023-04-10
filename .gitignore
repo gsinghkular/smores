@@ -5,5 +5,3 @@ __pycache__/
 .vscode
 
 *.pem
-
-celerybeat-schedule
