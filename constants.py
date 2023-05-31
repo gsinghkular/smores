@@ -43,7 +43,7 @@ ICEBREAKERS = [
     "What excuse do you use all the time?",
     "What are the five things that are the most important to you except friends and family?",
     "If you weren't at work right now, what would you be doing?",
-    "Would you instead choose “wisdom” or “money”?",
+    "Would you instead choose "wisdom" or "money"?",
     "Which skill have you learned during working from home?",
     "What superpower do you wish you could wake up and have tomorrow?",
     "Are you a listener or a talker?",
