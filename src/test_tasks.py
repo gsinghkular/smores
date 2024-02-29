@@ -1,18 +1,18 @@
 import os
-import tasks
 import unittest
+import src.tasks.member_management as member_tasks
+import src.tasks.pairing as pairing_tasks
 
 from unittest.mock import patch, MagicMock
 from datetime import datetime, timedelta
-from db import database, models, crud
-
+from src.db import database, models, crud
 
 class TestTasks(unittest.TestCase):
     def setUp(self) -> None:
         self.tearDown()
         database.Base.metadata.create_all(database.engine)
 
-    @patch("helpers.get_slack_client", autospec=True)
+    @patch("src.slack_app.get_slack_client", autospec=True)
     def test_cache_channel_members(self, webclient):
         channel_id, team_id, enterprise_id = "test_cid", "test_tid", "test_eid"
         existing_member = "member_4"
@@ -47,13 +47,13 @@ class TestTasks(unittest.TestCase):
             webclient.return_value = client_instance
 
             # act
-            tasks.cache_channel_members(channel_id, team_id, enterprise_id)
+            member_tasks.cache_channel_members(channel_id, team_id, enterprise_id)
 
             # assert correct values are inserted
             res = db.query(models.ChannelMembers).count()
-            self.assertEquals(res, 4)
+            self.assertEqual(res, 4)
 
-    @patch("helpers.get_slack_client", autospec=True)
+    @patch("src.slack_app.get_slack_client", autospec=True)
     def test_generate_and_send_conversations(self, webclient):
         os.environ["CONVERSATION_DAY"] = str(datetime.now().weekday())
         self._insert_fake_channels_and_members("generate_and_send_conv_id", "test_eid")
@@ -71,7 +71,7 @@ class TestTasks(unittest.TestCase):
             channel.last_sent_on = (datetime.utcnow() - timedelta(14)).date()
             db.commit()
 
-            tasks.match_pairs_periodic()
+            pairing_tasks.match_pairs_periodic()
 
             conversations = (
                 db.query(models.ChannelConversations)

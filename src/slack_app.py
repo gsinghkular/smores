@@ -1,13 +1,13 @@
 import settings
 import logging
+import src.tasks.member_management as membership_tasks
+import src.tasks.pairing as pairing_tasks
 
 from slack_bolt.oauth.oauth_settings import OAuthSettings
 from slack_bolt.app import App
 from slack_sdk import WebClient
 from slack_sdk.errors import SlackApiError
 
-from src.tasks.member_management import add_member_to_db, cache_channel_members
-from src.tasks.pairing import force_generate_conversations
 from src.db import database, crud
 
 
@@ -39,7 +39,7 @@ def get_slack_client(enterprise_id: str | None, team_id: str) -> WebClient:
 @app.event("member_joined_channel")
 def handle_member_joined(body, context):
     event = body["event"]
-    add_member_to_db.delay(event["user"], context.channel_id, context.team_id)
+    membership_tasks.add_member_to_db.delay(event["user"], context.channel_id, context.team_id)
 
 
 @app.event("member_left_channel")
@@ -71,7 +71,7 @@ def handle_smores_command(
         if action in ["enable", "disable"]:
             _handle_activation(client, say, respond, action, context, channel_id, logger)
         elif action in ["force_chat"]:
-            force_generate_conversations.delay(channel_id)
+            pairing_tasks.force_generate_conversations.delay(channel_id)
             respond("conversations queued to be sent.")
         elif action in ["opt_in", "opt_out"]:
             _handle_member_inclusion(respond, action, context, context.user_id)
@@ -111,7 +111,7 @@ def _handle_activation(client, say, respond, action, context, channel_id, logger
 
         if channel is None and action == "enable":
             crud.add_channel(db, channel_id, context.team_id, context.enterprise_id)
-            cache_channel_members.delay(
+            membership_tasks.cache_channel_members.delay(
                 channel_id, context.team_id, context.enterprise_id
             )
         else:
@@ -128,7 +128,7 @@ def _handle_member_inclusion(respond, action, context, member_id):
             "You are now opted out from pairings in this channel. Use `opt_in` command to rejoin."
         )
     else:
-        add_member_to_db.delay(member_id, context.channel_id, context.team_id)
+        membership_tasks.add_member_to_db.delay(member_id, context.channel_id, context.team_id)
         respond("You are now opted in for pairings in this channel.")
 
 
