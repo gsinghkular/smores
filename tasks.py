@@ -4,9 +4,11 @@ import os
 import time
 import helpers
 import constants
+import management
 
 from sqlalchemy import and_
 from datetime import datetime, timedelta
+from slack_sdk.errors import SlackApiError
 
 from db import crud, models, database
 from task_runner import celery
@@ -182,6 +184,26 @@ def add_member_to_db(member_id: str, channel_id: str, team_id: str):
         result = crud.add_member_if_not_exists(db, member_id, channel)
         if result < 1:
             logger.warning("no user inserted", extra=fields)
+        else:
+            sc.chat_postMessage(channel=member_id, text=f"You're opted into S'mores chat since you joined the channel <#{channel_id}>. If you do not want to participate in pairings while staying the channel then you can run command `/smores opt_out` in the channel.")
+
+
+@celery.task
+def remove_disabled_users():
+    with database.SessionLocal() as db:
+        channels: list[models.Channels] = db.query(models.Channels).all()
+        removed_members_in_channel = {}
+
+        for c in channels:
+            time.sleep(1)
+            try:
+                removed_members_in_channel[c.channel_id] = management.get_members_drift(c.channel_id, c.team_id, c.enterprise_id)
+            except SlackApiError:
+                logger.exception("Error getting members drift")
+            
+        for channel in removed_members_in_channel:
+            for removed in channel:
+                crud.delete_member(db, removed, channel, channels[channel].team_id)
 
 
 def generate_and_send_conversations(channel, db):

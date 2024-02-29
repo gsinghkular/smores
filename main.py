@@ -53,7 +53,7 @@ def handle_member_left(body, context, logger: logging.Logger):
 
 @app.command("/smores")
 def handle_smores_command(
-    ack, command, respond, client, context, logger: logging.Logger
+    ack, command, respond, say, client, context, logger: logging.Logger
 ):
     try:
         ack()
@@ -62,7 +62,7 @@ def handle_smores_command(
         channel_id = command["channel_id"]
 
         if action in ["enable", "disable"]:
-            _handle_activation(client, respond, action, context, channel_id, logger)
+            _handle_activation(client, say, respond, action, context, channel_id, logger)
         elif action in ["force_chat"]:
             tasks.force_generate_conversations.delay(channel_id)
             respond("conversations queued to be sent.")
@@ -85,7 +85,7 @@ def handle_smores_command(
         logger.exception("failed to handle command", command)
 
 
-def _handle_activation(client, respond, action, context, channel_id, logger):
+def _handle_activation(client, say, respond, action, context, channel_id, logger):
     try:
         client.conversations_info(channel=channel_id)
     except SlackApiError as e:
@@ -111,7 +111,7 @@ def _handle_activation(client, respond, action, context, channel_id, logger):
             channel.is_active = True if action == "enable" else False
             db.commit()
 
-        respond(f"S'mores fireside chats {action}d")
+        say(f"S'mores fireside chats {action}d")
 
 
 def _handle_member_inclusion(respond, action, context, member_id):
