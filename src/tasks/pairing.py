@@ -2,43 +2,19 @@ import logging
 import random
 import os
 import time
-import helpers
-import constants
+import src.constants as constants
+import src.helpers as helpers
+import src.slack_app as slack
+
 
 from sqlalchemy import and_
 from datetime import datetime, timedelta
 
-from db import crud, models, database
+from src.db import crud, models, database
 from task_runner import celery
 
 
 logger = logging.getLogger(__name__)
-
-
-@celery.task(autoretry_for=(Exception,), retry_backoff=True, retry_kwargs={'max_retries': 5})
-def cache_channel_members(channel_id, team_id, enterprise_id):
-    sc = helpers.get_slack_client(enterprise_id, team_id)
-    with database.SessionLocal() as db:
-        members_data = sc.conversations_members(channel=channel_id, limit=200).data
-        local_members = crud.get_cached_channel_member_ids(db, channel_id, team_id)
-        members = helpers.generate_member_model_list(
-            members_data["members"], local_members, channel_id, team_id
-        )
-
-        next_cursor = members_data["response_metadata"]["next_cursor"]
-        while next_cursor:
-            members_data = sc.conversations_members(channel=channel_id, limit=200, cursor=next_cursor).data
-            members += helpers.generate_member_model_list(
-                members_data["members"], local_members, channel_id, team_id
-            )
-
-            next_cursor = members_data["response_metadata"]["next_cursor"]
-
-        db.bulk_save_objects(members)
-        db.commit()
-
-        # run the task to check if any of the users were bots and remove them
-        exclude_bots_from_cached_users.delay(channel_id, team_id, enterprise_id)
 
 
 @celery.task
@@ -84,7 +60,7 @@ def send_failed_intros():
         )
         for intro in pending_intros:
             enterprise_id = crud.get_enterprise_id(db, intro.team_id, intro.channel_id)
-            client = helpers.get_slack_client(enterprise_id, intro.team_id)
+            client = slack.get_slack_client(enterprise_id, intro.team_id)
 
             all_convos_sent = True
             for conv in intro.conversations["pairs"]:
@@ -129,7 +105,7 @@ def send_midpoint_reminder():
 
         for intro in midpoint_convos:
             enterprise_id = crud.get_enterprise_id(db, intro.team_id, intro.channel_id)
-            client = helpers.get_slack_client(enterprise_id, intro.team_id)
+            client = slack.get_slack_client(enterprise_id, intro.team_id)
 
             all_convos_sent = True
             for conv in intro.conversations["pairs"]:
@@ -150,44 +126,10 @@ def send_midpoint_reminder():
             db.commit()
 
 
-@celery.task
-def exclude_bots_from_cached_users(channel_id: str, team_id: str, enterprise_id: str):
-    with database.SessionLocal() as db:
-        sc = helpers.get_slack_client(enterprise_id, team_id)
-        members = crud.get_cached_channel_member_ids(db, channel_id, team_id)
-        for member in members:
-            user_data = sc.users_info(user=member).data
-            if user_data["user"]["is_bot"]:
-                # TODO: handle 429 errors from slack api
-                time.sleep(1.2)
-                crud.delete_member(db, member, channel_id, team_id)
-
-
-@celery.task(autoretry_for=(Exception,), retry_backoff=True, retry_kwargs={'max_retries': 5})
-def add_member_to_db(member_id: str, channel_id: str, team_id: str):
-    with database.SessionLocal() as db:
-        channel = crud.get_channel(db, channel_id, team_id)
-        if not channel:
-            return
-        sc = helpers.get_slack_client(channel.enterprise_id, team_id)
-        user_data = sc.users_info(user=member_id).data
-        fields = {
-            "user": member_id,
-            "channel": channel_id,
-            "team_id": team_id,
-        }
-        if user_data["user"]["is_bot"]:
-            logger.warn("user is a bot", extra=fields)
-            return
-        result = crud.add_member_if_not_exists(db, member_id, channel)
-        if result < 1:
-            logger.warning("no user inserted", extra=fields)
-
-
 def generate_and_send_conversations(channel, db):
     conv_pairs = create_conversation_pairs(channel, db)
 
-    client = helpers.get_slack_client(channel.enterprise_id, channel.team_id)
+    client = slack.get_slack_client(channel.enterprise_id, channel.team_id)
     all_convos_sent = True
     for conv_pair in conv_pairs.conversations["pairs"]:
         # TODO: handle 429 errors from slack api
@@ -248,7 +190,7 @@ def create_conversation_pairs(channel: models.Channels, db):
     pairs, members_circle = helpers.round_robin_match(members_list)
 
     if excluded_member:
-        random_pair = random.randrange(count//2)
+        random_pair = random.randrange(count // 2)
         pairs[random_pair].append(excluded_member)
         members_circle.insert(1, excluded_member)
 
