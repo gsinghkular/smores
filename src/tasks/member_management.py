@@ -90,9 +90,10 @@ def remove_disabled_users():
             except SlackApiError:
                 logger.exception("Error getting members drift")
 
-        for channel in removed_members_in_channel:
-            for removed in channel:
-                crud.delete_member(db, removed, channel, channels[channel].team_id)
+        for c in channels:
+            diff = removed_members_in_channel.get(c.channel_id, {})
+            for removed in diff.get('removed_on_slack', []):
+                crud.delete_member(db, removed, c.channel_id, c.team_id)
 
 
 def get_slack_members_list(channel_id, team_id, enterprise_id, exclude_bots=True):
