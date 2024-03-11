@@ -128,6 +128,8 @@ def send_midpoint_reminder():
 
 def generate_and_send_conversations(channel, db):
     conv_pairs = create_conversation_pairs(channel, db)
+    if not conv_pair:
+        return
 
     client = slack.get_slack_client(channel.enterprise_id, channel.team_id)
     all_convos_sent = True
@@ -173,7 +175,7 @@ def create_conversation_pairs(channel: models.Channels, db):
     if len(members_list) < 2:
         channel.last_sent_on = datetime.utcnow().date()
         db.commit()
-        return {}
+        return
 
     # For even number of people, the round robin tournament will match everyone at least once
     # by using the circle method: https://en.wikipedia.org/wiki/Round-robin_tournament#Circle_method
