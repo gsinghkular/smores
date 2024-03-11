@@ -128,7 +128,7 @@ def send_midpoint_reminder():
 
 def generate_and_send_conversations(channel, db):
     conv_pairs = create_conversation_pairs(channel, db)
-    if not conv_pair:
+    if not conv_pairs:
         return
 
     client = slack.get_slack_client(channel.enterprise_id, channel.team_id)
