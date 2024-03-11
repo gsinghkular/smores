@@ -131,7 +131,7 @@ def generate_and_send_conversations(channel, db):
 
     client = slack.get_slack_client(channel.enterprise_id, channel.team_id)
     all_convos_sent = True
-    for conv_pair in conv_pairs.conversations["pairs"]:
+    for conv_pair in conv_pairs.conversations.get("pairs", []):
         # TODO: handle 429 errors from slack api
         time.sleep(1.2)
         try:
