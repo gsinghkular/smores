@@ -25,7 +25,9 @@ class Channels(Base):
     channel_id = Column(String, index=True)
     is_active = Column(Boolean)
     last_sent_on = Column(Date, nullable=True)
-    conversation_day = Column(Integer, default=1)
+    conversation_day = Column(Integer, default=2)
+    conversation_frequency_weeks = Column(Integer, nullable=False, server_default="2", default=2)
+    send_midpoint_reminder = Column(Boolean, nullable=False, server_default="t", default=True)
     added_on = Column(DateTime, default=datetime.utcnow)
     members_circle = Column(MutableList.as_mutable(ARRAY(String)))
 
