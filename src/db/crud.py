@@ -118,7 +118,7 @@ def save_channel_conversations(db: Session, channel, pairs):
         conversation_pair = {"status": "GENERATED", "pair": pair}
         conversation_pairs.append(conversation_pair)
 
-    conversations = {"status": "GENERATED", "pairs": conversation_pairs}
+    conversations = {"status": "GENERATED", "pairs": conversation_pairs, "frequency": channel.conversation_frequency_weeks}
     conversation = models.ChannelConversations(
         channel_id=channel.channel_id,
         team_id=channel.team_id,
