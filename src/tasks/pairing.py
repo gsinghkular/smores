@@ -20,15 +20,14 @@ logger = logging.getLogger(__name__)
 @celery.task
 def match_pairs_periodic():
     # TODO: allow configuring of which day to start conversations on per channel basis
-    # TODO: If another task starts while previous one is already running that can potentially add issues, use mutex to prevent that
+    # TODO: If another task starts while previous one is already running that can potentially add issues, use mutex to prevent that. Currently not an issue because running on a single process.
     # Instead of start sending messages at sunday night, this makes the day start at 9am EST. TODO: Make it configurable per channel
-    today = datetime.utcnow() - timedelta(hours=14)
-    if today.weekday() != int(os.environ.get("CONVERSATION_DAY", 0)):
+    if datetime.utcnow().weekday() != int(os.environ.get("CONVERSATION_DAY", 0)):
         return
 
     with database.SessionLocal() as db:
         while True:
-            channels = crud.get_channels_eligible_for_pairing(db, 10, today)
+            channels = crud.get_channels_eligible_for_pairing(db, 10)
             if len(channels) == 0:
                 break
             for channel in channels:

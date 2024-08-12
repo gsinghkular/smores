@@ -23,9 +23,7 @@ def get_channel(db: Session, channel_id: str, team_id: str) -> models.Channels:
     )
 
 
-def get_channels_eligible_for_pairing(db: Session, limit: int = 10, curr_date=datetime.utcnow()):
-    # TODO: instead of being default of 2 weeks, allow per channel configuration of frequency of pairing
-    two_weeks_ago_date = curr_date - timedelta(14)
+def get_channels_eligible_for_pairing(db: Session, limit: int = 10):
     return (
         db.query(models.Channels)
         .where(
@@ -33,7 +31,7 @@ def get_channels_eligible_for_pairing(db: Session, limit: int = 10, curr_date=da
                 models.Channels.is_active == True,
                 or_(
                     models.Channels.last_sent_on == None,
-                    models.Channels.last_sent_on <= two_weeks_ago_date.date(),
+                    models.Channels.last_sent_on <= datetime.utcnow().date() - (models.Channels.conversation_frequency_weeks * timedelta(weeks=1))
                 ),
             )
         )
@@ -120,7 +118,7 @@ def save_channel_conversations(db: Session, channel, pairs):
         conversation_pair = {"status": "GENERATED", "pair": pair}
         conversation_pairs.append(conversation_pair)
 
-    conversations = {"status": "GENERATED", "pairs": conversation_pairs}
+    conversations = {"status": "GENERATED", "pairs": conversation_pairs, "frequency": channel.conversation_frequency_weeks}
     conversation = models.ChannelConversations(
         channel_id=channel.channel_id,
         team_id=channel.team_id,
