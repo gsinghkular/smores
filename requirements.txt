@@ -1,9 +1,9 @@
 alembic==1.13.1
 fastapi==0.110.0
-python-dotenv==1.0.1
+python-dotenv==1.2.2
 slack-bolt==1.18.1
 uvicorn==0.27.1
-aiohttp==3.9.3
+aiohttp==3.13.4
 sqlalchemy==1.4.51
 psycopg2-binary==2.9.9
 redis==5.0.2

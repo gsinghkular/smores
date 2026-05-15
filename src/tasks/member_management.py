@@ -14,6 +14,20 @@ logger = logging.getLogger(__name__)
 
 @celery.task(autoretry_for=(Exception,), retry_backoff=True, retry_kwargs={"max_retries": 5})
 def cache_channel_members(channel_id, team_id, enterprise_id):
+    """
+    Cache all members of a Slack channel in the database.
+    
+    Args:
+        channel_id (str): The ID of the Slack channel
+        team_id (str): The ID of the Slack team/workspace
+        enterprise_id (str): The ID of the Slack enterprise
+        
+    This function:
+    1. Fetches all members from the Slack channel
+    2. Compares with locally cached members
+    3. Saves new members to the database
+    4. Triggers a task to exclude bots from cached users
+    """
     sc = slack.get_slack_client(enterprise_id, team_id)
     with database.SessionLocal() as db:
         members_data = sc.conversations_members(channel=channel_id, limit=200).data
@@ -38,8 +52,22 @@ def cache_channel_members(channel_id, team_id, enterprise_id):
         exclude_bots_from_cached_users.delay(channel_id, team_id, enterprise_id)
 
 
+
 @celery.task
 def exclude_bots_from_cached_users(channel_id: str, team_id: str, enterprise_id: str):
+    """
+    Remove bot users from the cached channel members in the database.
+    
+    Args:
+        channel_id (str): The ID of the Slack channel
+        team_id (str): The ID of the Slack team/workspace
+        enterprise_id (str): The ID of the Slack enterprise
+        
+    This function:
+    1. Gets all cached members for the channel
+    2. Checks each member's user info from Slack
+    3. Removes any members that are identified as bots
+    """
     with database.SessionLocal() as db:
         sc = slack.get_slack_client(enterprise_id, team_id)
         members = crud.get_cached_channel_member_ids(db, channel_id, team_id)
@@ -53,6 +81,20 @@ def exclude_bots_from_cached_users(channel_id: str, team_id: str, enterprise_id:
 
 @celery.task(autoretry_for=(Exception,), retry_backoff=True, retry_kwargs={"max_retries": 5})
 def add_member_to_db(member_id: str, channel_id: str, team_id: str):
+    """
+    Add a new member to the database and send them a welcome message.
+    
+    Args:
+        member_id (str): The ID of the Slack user to add
+        channel_id (str): The ID of the Slack channel
+        team_id (str): The ID of the Slack team/workspace
+        
+    This function:
+    1. Verifies the channel exists
+    2. Checks if the user is a bot
+    3. Adds the member to the database if they don't exist
+    4. Sends a welcome message to the user if they were added
+    """
     with database.SessionLocal() as db:
         channel = crud.get_channel(db, channel_id, team_id)
         if not channel:
@@ -79,6 +121,14 @@ def add_member_to_db(member_id: str, channel_id: str, team_id: str):
 
 @celery.task
 def remove_disabled_users():
+    """
+    Remove users from the database who are no longer in their respective Slack channels.
+    
+    This function:
+    1. Gets all channels from the database
+    2. For each channel, checks for members who have left
+    3. Removes those members from the database
+    """
     with database.SessionLocal() as db:
         channels: list[models.Channels] = db.query(models.Channels).all()
         removed_members_in_channel = {}
@@ -97,6 +147,21 @@ def remove_disabled_users():
 
 
 def get_slack_members_list(channel_id, team_id, enterprise_id, exclude_bots=True):
+    """
+    Get a list of all members in a Slack channel.
+    
+    Args:
+        channel_id (str): The ID of the Slack channel
+        team_id (str): The ID of the Slack team/workspace
+        enterprise_id (str): The ID of the Slack enterprise
+        exclude_bots (bool, optional): Whether to exclude bot users. Defaults to True.
+        
+    Returns:
+        set: A set of member IDs in the channel, excluding bots if exclude_bots is True
+        
+    Note:
+        This function handles pagination and rate limiting from the Slack API
+    """
     sc = slack.get_slack_client(enterprise_id, team_id)
     members_data = sc.conversations_members(channel=channel_id, limit=200).data
 
@@ -135,7 +200,20 @@ def get_slack_members_list(channel_id, team_id, enterprise_id, exclude_bots=True
 
 
 def get_members_drift(channel_id, team_id, enterprise_id):
-    slack_members = get_slack_members_list(channel_id, team_id, enterprise_id)
+    """
+    Compare Slack channel members with cached members to find differences.
+    
+    Args:
+        channel_id (str): The ID of the Slack channel
+        team_id (str): The ID of the Slack team/workspace
+        enterprise_id (str): The ID of the Slack enterprise
+        
+    Returns:
+        dict: A dictionary containing:
+            - new_on_slack: set of members in Slack but not in cache
+            - removed_on_slack: set of members in cache but not in Slack
+    """
+    slack_members = get_slack_members_list(channel_id, team_id, enterprise_id, exclude_bots=False)
 
     with database.SessionLocal() as db:
         cached_members = crud.get_cached_channel_member_ids(db, channel_id, team_id)
